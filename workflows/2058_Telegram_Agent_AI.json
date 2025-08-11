@@ -1,0 +1,390 @@
+{
+  "name": "Chat DB",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -400,
+        0
+      ],
+      "id": "13d51c73-1b57-4c70-8e63-77de79841a6a",
+      "name": "Telegram Trigger",
+      "webhookId": "d4792d97-387d-4de7-9c5e-dc6335b39927",
+      "credentials": {
+        "telegramApi": {
+          "id": "BvvnnJRBORgAq3rG",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $json.output }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1020,
+        -40
+      ],
+      "id": "f57c492c-51dd-43d9-9ba7-654028a7b132",
+      "name": "Telegram",
+      "webhookId": "25d602d6-abf8-49a7-b3e8-d36ca26aeb08",
+      "credentials": {
+        "telegramApi": {
+          "id": "BvvnnJRBORgAq3rG",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.text }}{{ $json.message.text }}",
+        "options": {
+          "systemMessage": "Eres un AI Analista de Información. Tu objetivo es interpretar consultas de usuario sobre conjuntos de datos y entregar resultados claros, concisos y bien estructurados. Cuando el usuario pida análisis de datos, debes:\n\n• Comprender el esquema (campos: id, nombre_completo, identificación, fecha_nacimiento, edad, sexo, género, teléfono, ciudad, profesión, años_experiencia, num_trabajos, expectativa_salarial_COP, nivel_educativo, email, fecha_registro).  \n• Validar la consulta contra los campos disponibles.  \n• Realizar cálculos o agregaciones solicitadas (por ejemplo, promedio de edad, conteo por ciudad, rango salarial).  \n• Presentar la salida en un formato fácil de leer.\n• Incluir siempre un breve resumen ejecutivo (2–3 frases) antes de los detalles.\n• Solicitar aclaraciones si la consulta es ambigua (por ejemplo, “¿Qué rango de fechas te interesa analizar?”).\n\nMantén un tono profesional y riguroso en el análisis."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        600,
+        -40
+      ],
+      "id": "cf50c785-e494-448c-bca3-d4976be8481c",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "{{ $('Telegram Trigger').item.json.message.chat.id }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        700,
+        240
+      ],
+      "id": "2d7f258f-8f02-4d5c-9806-ef045238d06f",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        520,
+        240
+      ],
+      "id": "a3a7c082-ebc2-4b40-964b-2c0ad51fce43",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "YmPMMkWyMEgby60e",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.message.text }}",
+                    "rightValue": "=",
+                    "operator": {
+                      "type": "string",
+                      "operation": "exists",
+                      "singleValue": true
+                    },
+                    "id": "30668e37-776d-4b30-b370-b57018279e85"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Texto"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "e556686b-dd01-46f7-8b17-cb6d03f2e0a9",
+                    "leftValue": "={{ $json.message.voice }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "object",
+                      "operation": "exists",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Audio"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -200,
+        0
+      ],
+      "id": "5463f7f7-7914-4dad-84a9-a0a913c6d78b",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "6f1da218-9993-478c-abdc-8dc283cd49aa",
+              "name": "message.text",
+              "value": "={{ $json.message.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        180,
+        -180
+      ],
+      "id": "ceb0f28c-41c0-4022-b5f1-bc2cd0a41ab4",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "fileId": "={{ $json.message.voice.file_id }}"
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        60,
+        120
+      ],
+      "id": "d08451a0-f175-4d9e-8f29-fe5cfd2dbef6",
+      "name": "Telegram1",
+      "webhookId": "d74d6452-2c94-4a07-8deb-205f2487dd18",
+      "credentials": {
+        "telegramApi": {
+          "id": "BvvnnJRBORgAq3rG",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        320,
+        120
+      ],
+      "id": "bc195434-2050-4526-9d9d-fab40eeae2bf",
+      "name": "OpenAI",
+      "credentials": {
+        "openAiApi": {
+          "id": "YmPMMkWyMEgby60e",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1N1etACJGLbV84XJ7HupUceTWD4VCgeK3WSmmLLN0OI0",
+          "mode": "list",
+          "cachedResultName": "db_demo_nodo",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1N1etACJGLbV84XJ7HupUceTWD4VCgeK3WSmmLLN0OI0/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Hoja 1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1N1etACJGLbV84XJ7HupUceTWD4VCgeK3WSmmLLN0OI0/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.6,
+      "position": [
+        860,
+        180
+      ],
+      "id": "a38456e8-11b9-441c-af72-5ad2b868df43",
+      "name": "Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "05IuVgz3mIzKYT22",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Telegram1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram1": {
+      "main": [
+        [
+          {
+            "node": "OpenAI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "d69d6e7a-7083-4e20-9107-195e570f4462",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "94b40cfc9ceab97c402a6d7997edffca167ef298c27f6944f091f7c40f4c6334"
+  },
+  "id": "2jdUsYy7vnZglxoq",
+  "tags": []
+}

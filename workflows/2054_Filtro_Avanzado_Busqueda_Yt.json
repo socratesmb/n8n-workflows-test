@@ -1,0 +1,491 @@
+{
+  "name": "filtro-avanzado-busqueda-yt",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -300,
+        -100
+      ],
+      "id": "079271b5-93b1-45b7-adc5-2ae842343758",
+      "name": "When chat message received",
+      "webhookId": "172cad93-d7ab-42e4-8519-3245ba79e715"
+    },
+    {
+      "parameters": {
+        "resource": "video",
+        "returnAll": true,
+        "filters": {
+          "publishedAfter": "={{ new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString() }}",
+          "q": "={{ $json.chatInput }}",
+          "regionCode": "CO"
+        },
+        "options": {
+          "order": "relevance",
+          "safeSearch": "moderate"
+        }
+      },
+      "type": "n8n-nodes-base.youTube",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        -100
+      ],
+      "id": "ec3a83d6-72dc-4f98-9ae4-5019908d6228",
+      "name": "Get many videos",
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "pJWgC7EvDSTgo2sk",
+          "name": "YouTube account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://www.googleapis.com/youtube/v3/videos",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "key",
+              "value": "AIzaSyDxNNgiAcEre7fz88JPMK-i2pcVErjoZpU"
+            },
+            {
+              "name": "part",
+              "value": "contentDetails, snippet, statistics"
+            },
+            {
+              "name": "id",
+              "value": "={{ $json.id.videoId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        140,
+        -100
+      ],
+      "id": "93df0ea4-2a71-4820-892a-4cd065ff600f",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Extraer los datos de cada video para operar\nconst views = Number($json.items[0].statistics.viewCount || 0);\nconst likes = Number($json.items[0].statistics.likeCount || 0);\nconst comments = Number($json.items[0].statistics.commentCount || 0);\n\n// Operación media\nconst like_ratio = views > 0 ? (likes/views) * 100 : 0;\nconst comment_ratio = views > 0 ? (comments/views)* 100 : 0;\n\n// Obtener info del video\nconst title = $json.items[0].snippet.title || '';\nconst video_id = $json.items[0].id || '';\nconst yt_url = `https://www.youtube.com/watch?v=${video_id}`;\n\n// Salida de los datos\nreturn {\n  title,\n  yt_url,\n  views,\n  like_ratio,\n  comment_ratio\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        360,
+        -100
+      ],
+      "id": "2458d0bc-85bf-4195-82cb-e067ea3623ad",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "4f895df6-de6b-49d9-95e6-61aa0120a413",
+              "leftValue": "={{ $json.like_ratio }}",
+              "rightValue": 5,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            },
+            {
+              "id": "1e6e2d82-494d-4386-aa77-508d113b8666",
+              "leftValue": "={{ $json.comment_ratio }}",
+              "rightValue": 0.5,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            },
+            {
+              "id": "496d7e28-566c-4562-a1f1-593a41b12a95",
+              "leftValue": "={{ $json.views }}",
+              "rightValue": 500,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        580,
+        -100
+      ],
+      "id": "da957003-2495-4894-961c-a438f0114537",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.removeDuplicates",
+      "typeVersion": 2,
+      "position": [
+        840,
+        -180
+      ],
+      "id": "4c276038-d06a-4b5b-bce4-e5e311376ce0",
+      "name": "Remove Duplicates"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.title }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "Tu trabajo es verificar si los títulos estan en español, ingles u otro idioma. Responde con una sola palabra. \"Esp\" para los títulos en español. \"Eng\" para los títulos en ingles. \"Otr\" para títulos de diferente idioma."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        1060,
+        -180
+      ],
+      "id": "c3c00d88-60bb-43d8-8fb4-f98dabdfcfc3",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        980,
+        20
+      ],
+      "id": "4a134b28-e530-4cf7-ae76-0b147ea1e184",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "VlR2Iz0bCOUrbrfD",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n\t\"Respuesta\": \"Esp o Eng o Otr\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1180,
+        40
+      ],
+      "id": "81c6927f-d9a2-4db4-b81c-3d57b1b27648",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "be01b452-8609-4ee9-b658-69b3e478d925",
+              "leftValue": "={{ $json.output.Respuesta }}",
+              "rightValue": "Esp",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "e5eccba3-b8ce-4405-8fe3-17b47e6c7330",
+              "leftValue": "={{ $json.output.Respuesta }}",
+              "rightValue": "Eng",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1420,
+        -180
+      ],
+      "id": "d3be9185-7363-4235-a033-e3d72f4a3e3a",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appQljcIBkyB7F72P",
+          "mode": "list",
+          "cachedResultName": "nodo-demos-n8n",
+          "cachedResultUrl": "https://airtable.com/appQljcIBkyB7F72P"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbluHsKQAdtrleiMo",
+          "mode": "list",
+          "cachedResultName": "Registros YT",
+          "cachedResultUrl": "https://airtable.com/appQljcIBkyB7F72P/tbluHsKQAdtrleiMo"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Nombre": "={{ $('Remove Duplicates').item.json.title }}",
+            "URL": "={{ $('Remove Duplicates').item.json.yt_url }}",
+            "Vistas": "={{ $('Remove Duplicates').item.json.views }}",
+            "Promedio Likes": "={{ $('Remove Duplicates').item.json.like_ratio }}",
+            "Promedio Comentarios": "={{ $('Remove Duplicates').item.json.comment_ratio }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Nombre",
+              "displayName": "Nombre",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "URL",
+              "displayName": "URL",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Vistas",
+              "displayName": "Vistas",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Promedio Likes",
+              "displayName": "Promedio Likes",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Promedio Comentarios",
+              "displayName": "Promedio Comentarios",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        1740,
+        -300
+      ],
+      "id": "82034e16-f1a1-4b56-8387-b7a1c4a1eef5",
+      "name": "Create a record",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "b5kvCHJjhCUmdxOe",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "Get many videos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many videos": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Remove Duplicates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Remove Duplicates": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Create a record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "0c5b5a9c-314f-4ffe-8f2c-f4c58c2b7112",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "f4d7f87e43bae04b762f8af7d78b52996635e7d0ada920f7372444934d512c68"
+  },
+  "id": "iw8aZZscbmC8xwS0",
+  "tags": []
+}

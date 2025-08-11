@@ -1,0 +1,656 @@
+{
+  "name": "image-procesing",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1440,
+        304
+      ],
+      "id": "54785fc8-1767-472a-b645-a98f6f912111",
+      "name": "Telegram Trigger",
+      "webhookId": "135ab6e7-9500-4f6b-9aef-01c1f8346381",
+      "credentials": {
+        "telegramApi": {
+          "id": "vfmVcN3rleEiByJg",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.message.text }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "exists",
+                      "singleValue": true
+                    },
+                    "id": "3e5c09db-ba87-4aa8-81e3-9a3ecf8a22c0"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Texto"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "b9dec2fc-44ce-4fd6-889f-52648af68e01",
+                    "leftValue": "={{ $json.message.photo }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "array",
+                      "operation": "exists",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Image"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -1232,
+        304
+      ],
+      "id": "2d6965ac-c8c9-42eb-8347-ef7becec5a72",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "fileId": "={{ $json.message.photo[2].file_id }}"
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -896,
+        496
+      ],
+      "id": "41e454ab-9cec-4f64-a4c5-1f59d4ea6b99",
+      "name": "Get a file",
+      "webhookId": "de63bb02-3d7c-46f0-b3f2-f2a170104bec",
+      "credentials": {
+        "telegramApi": {
+          "id": "vfmVcN3rleEiByJg",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "binaryToPropery",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        -688,
+        496
+      ],
+      "id": "d9105403-a586-4ccc-a36d-aaa23ec7d0c9",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "operation": "toBinary",
+        "sourceProperty": "data",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        -480,
+        496
+      ],
+      "id": "bdb01cbc-8b9d-46d5-b3ef-4bafd660f849",
+      "name": "Convert to File"
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "chatgpt-4o-latest",
+          "mode": "list",
+          "cachedResultName": "CHATGPT-4O-LATEST"
+        },
+        "text": "Extract all visible text from this image. Return only the text content without any descriptions, colors, or visual details.",
+        "inputType": "base64",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        -288,
+        496
+      ],
+      "id": "3490e5f6-d38f-4f56-8040-11cc2a094996",
+      "name": "Analyze image",
+      "credentials": {
+        "openAiApi": {
+          "id": "i2dppWP6vpZhz2O5",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "text": "={{ $('Analyze image').item.json.content }}",
+        "schemaType": "fromJson",
+        "jsonSchemaExample": "{\n\"NOMBRES\": \"\",  \n\"APELLIDOS\":\"\",\n\"NO-DOCUMENTO\":\"\",\n\"FECHA NACIMIENTO\": \"\",\n\"LUGAR DE NACIMIENTO\": \"\",\n\"ESTATURA\": \"\",\n\"SEXO\": \"\",\n\"FECHA Y LUGAR EXPEDICIÓN\":\"\",\n\"RH\":\"\"\n}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.informationExtractor",
+      "typeVersion": 1.2,
+      "position": [
+        -64,
+        496
+      ],
+      "id": "4eb5d48d-bc17-4705-a553-67eec95be212",
+      "name": "Information Extractor1"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message.text }} {{ $json.output ? $json.output.toJsonString(): '' }}",
+        "options": {
+          "systemMessage": "Eres un asistente especializado en registro de usuarios a través de documentos de identidad en Telegram. Tu función principal es guiar a los usuarios paso a paso en el proceso de registro, procesando tanto el anverso como el reverso de sus documentos en una sola imagen.\n\nFLUJO DE TRABAJO:\nCuando un usuario solicite registrar un nuevo usuario, debes seguir este proceso exacto:\n\n1. SOLICITUD INICIAL: Responde amablemente confirmando que puedes ayudarle con el registro y solicita que cargue UNA SOLA imagen o foto que contenga TANTO el anverso como el reverso del documento de identidad en la misma imagen. Sé claro en que ambas caras del documento deben estar visibles en una sola fotografía.\n\n2. PROCESAMIENTO Y GUARDADO DE DATOS: Una vez recibidos los datos de la imagen, GUARDA todos estos datos en el dataset como un registro nuevo.\n\n3. CONFIRMACIÓN FINAL: Una vez completado el procesamiento y guardado de todos los datos, confirma al usuario que el proceso fue exitoso mencionando específicamente el nombre completo extraído: \"El registro se creó correctamente para {NOMBRES Y APELLIDOS}\".\n\nTONO Y COMUNICACIÓN:\nMantén un tono profesional, claro y servicial. Proporciona instrucciones específicas sobre cómo debe ser la imagen (con anverso y reverso visibles) y confirma la recepción exitosa antes de procesar. Si hay algún error en el procesamiento de la imagen o si no se pueden ver claramente ambas caras del documento, informa claramente al usuario y solicita que vuelva a cargar la imagen con ambas caras visibles.\n\nESTRUCTURA DE RESPUESTAS:\n- Usa frases completas y claras\n- Confirma cada acción realizada\n- Solicita específicamente lo que necesitas del usuario\n- Proporciona retroalimentación sobre el estado del proceso"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.1,
+      "position": [
+        672,
+        256
+      ],
+      "id": "8e6b71df-1380-4c10-b621-9915b060fa74",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "6831087a-07f9-4107-80f8-7e29c021d7ad",
+              "name": "message.text",
+              "value": "={{ $json.message.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -384,
+        32
+      ],
+      "id": "c6516273-7d23-4cf3-9a7e-e766ae96e26d",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        576,
+        464
+      ],
+      "id": "33318678-5502-4198-a730-9828002bb950",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "i2dppWP6vpZhz2O5",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        720,
+        464
+      ],
+      "id": "a11b8cd4-4cc7-4e5c-b112-ce67cea2a5bd",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1o02qKambG_ILmu-zPcktmIYT9eLEy6nlAkpDvAM2kFk",
+          "mode": "list",
+          "cachedResultName": "Data-idcard",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1o02qKambG_ILmu-zPcktmIYT9eLEy6nlAkpDvAM2kFk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Hoja 1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1o02qKambG_ILmu-zPcktmIYT9eLEy6nlAkpDvAM2kFk/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.6,
+      "position": [
+        864,
+        464
+      ],
+      "id": "1963df20-79ea-4c93-8d8f-ac752580a242",
+      "name": "Obtener datos sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GUVnhYhWyVQzcenL",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1o02qKambG_ILmu-zPcktmIYT9eLEy6nlAkpDvAM2kFk",
+          "mode": "list",
+          "cachedResultName": "Data-idcard",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1o02qKambG_ILmu-zPcktmIYT9eLEy6nlAkpDvAM2kFk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Hoja 1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1o02qKambG_ILmu-zPcktmIYT9eLEy6nlAkpDvAM2kFk/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "FECHA NACIMIENTO": "={{ $('Information Extractor1').item.json.output['FECHA NACIMIENTO'] }}",
+            "LUGAR DE NACIMIENTO": "={{ $('Information Extractor1').item.json.output['LUGAR DE NACIMIENTO'] }}",
+            "ESTATURA": "={{ $('Information Extractor1').item.json.output.ESTATURA }}",
+            "SEXO": "={{ $('Information Extractor1').item.json.output.SEXO }}",
+            "RH": "={{ $('Information Extractor1').item.json.output.RH }}",
+            "FECHA Y LUGAR DE EXPEDICION": "={{ $('Information Extractor1').item.json.output['FECHA Y LUGAR EXPEDICIÓN'] }}",
+            "NO DOCUMENTO": "={{ $('Information Extractor1').item.json.output['NO-DOCUMENTO'] }}",
+            "NOMBRES": "={{ $('Information Extractor1').item.json.output.NOMBRES }}",
+            "APELLIDOS": "={{ $('Information Extractor1').item.json.output.APELLIDOS }}"
+          },
+          "matchingColumns": [
+            "NO DOCUMENTO"
+          ],
+          "schema": [
+            {
+              "id": "NOMBRES",
+              "displayName": "NOMBRES",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "APELLIDOS",
+              "displayName": "APELLIDOS",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "NO DOCUMENTO",
+              "displayName": "NO DOCUMENTO",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "FECHA NACIMIENTO",
+              "displayName": "FECHA NACIMIENTO",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "LUGAR DE NACIMIENTO",
+              "displayName": "LUGAR DE NACIMIENTO",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ESTATURA",
+              "displayName": "ESTATURA",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "SEXO",
+              "displayName": "SEXO",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "RH",
+              "displayName": "RH",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "FECHA Y LUGAR DE EXPEDICION",
+              "displayName": "FECHA Y LUGAR DE EXPEDICION",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.6,
+      "position": [
+        1024,
+        464
+      ],
+      "id": "4c1e076f-d425-445f-8bf4-54f262a65fec",
+      "name": "Guardar datos sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GUVnhYhWyVQzcenL",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $json.output }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1120,
+        240
+      ],
+      "id": "0c74c534-5c32-4548-ac8b-11859e92f688",
+      "name": "Send a text message",
+      "webhookId": "35a90794-0ff8-4b1e-a924-5853f6e19242",
+      "credentials": {
+        "telegramApi": {
+          "id": "vfmVcN3rleEiByJg",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        688
+      ],
+      "id": "cc7389bc-be89-41d8-928f-d15053399fd2",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "ZkH9JZldvX290Ncr",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get a file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a file": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Convert to File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to File": {
+      "main": [
+        [
+          {
+            "node": "Analyze image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze image": {
+      "main": [
+        [
+          {
+            "node": "Information Extractor1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Information Extractor1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener datos sheet": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar datos sheet": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Information Extractor1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "f06d6e24-57ea-4d0a-8c53-3751bc8ac8e8",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "18837cdde550c287c621a52cd452084a018de05a63e748e81bcba7e0c91ce5b1"
+  },
+  "id": "elpkt4e27ydPbXiq",
+  "tags": []
+}

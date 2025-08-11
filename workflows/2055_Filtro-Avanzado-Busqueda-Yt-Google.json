@@ -1,0 +1,482 @@
+{
+  "name": "filtro-avanzado-busqueda-yt-google",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -2040,
+        200
+      ],
+      "id": "21ddc701-884e-4442-9610-daa4f0906ab1",
+      "name": "When chat message received",
+      "webhookId": "172cad93-d7ab-42e4-8519-3245ba79e715"
+    },
+    {
+      "parameters": {
+        "resource": "video",
+        "returnAll": true,
+        "filters": {
+          "publishedAfter": "={{ new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString() }}",
+          "q": "={{ $json.chatInput }}",
+          "regionCode": "CO"
+        },
+        "options": {
+          "order": "relevance",
+          "safeSearch": "moderate"
+        }
+      },
+      "type": "n8n-nodes-base.youTube",
+      "typeVersion": 1,
+      "position": [
+        -1820,
+        200
+      ],
+      "id": "eeef21a8-69b4-4ff2-a834-64e291bdda10",
+      "name": "Get many videos",
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "pJWgC7EvDSTgo2sk",
+          "name": "YouTube account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://www.googleapis.com/youtube/v3/videos",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "key",
+              "value": "AIzaSyDxNNgiAcEre7fz88JPMK-i2pcVErjoZpU"
+            },
+            {
+              "name": "part",
+              "value": "contentDetails, snippet, statistics"
+            },
+            {
+              "name": "id",
+              "value": "={{ $json.id.videoId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1600,
+        200
+      ],
+      "id": "0cd97155-45a1-4165-883c-56939456da03",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Extraer los datos de cada video para operar\nconst views = Number($json.items[0].statistics.viewCount || 0);\nconst likes = Number($json.items[0].statistics.likeCount || 0);\nconst comments = Number($json.items[0].statistics.commentCount || 0);\n\n// Operación media\nconst like_ratio = views > 0 ? (likes/views) * 100 : 0;\nconst comment_ratio = views > 0 ? (comments/views)* 100 : 0;\n\n// Obtener info del video\nconst title = $json.items[0].snippet.title || '';\nconst video_id = $json.items[0].id || '';\nconst yt_url = `https://www.youtube.com/watch?v=${video_id}`;\nconst category = `${$('When chat message received').item.json.chatInput}`\n// Salida de los datos\nreturn {\n  category,\n  title,\n  yt_url,\n  views,\n  like_ratio,\n  comment_ratio\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1400,
+        200
+      ],
+      "id": "2089c1ab-283e-41e4-9707-2049a6f44d15",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "4f895df6-de6b-49d9-95e6-61aa0120a413",
+              "leftValue": "={{ $json.like_ratio }}",
+              "rightValue": 5,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            },
+            {
+              "id": "1e6e2d82-494d-4386-aa77-508d113b8666",
+              "leftValue": "={{ $json.comment_ratio }}",
+              "rightValue": 0.5,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            },
+            {
+              "id": "496d7e28-566c-4562-a1f1-593a41b12a95",
+              "leftValue": "={{ $json.views }}",
+              "rightValue": 500,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2020,
+        420
+      ],
+      "id": "17dee47c-ba44-47ae-8ccc-1f3a2ad2a196",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.removeDuplicates",
+      "typeVersion": 2,
+      "position": [
+        -1740,
+        420
+      ],
+      "id": "e8c022cd-ee38-4ecd-a9e6-4fff8784feca",
+      "name": "Remove Duplicates"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.title }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "Tu trabajo es verificar si los títulos estan en español y ingles o en otro idioma.\n\nResponde con una sola palabra. \n\n\"Pass\" para los títulos en español o en ingles. \n\"Stop\" para títulos de diferente idioma."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        -1520,
+        420
+      ],
+      "id": "dc8d6c87-c962-4080-a99f-dac0f4301e7a",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n\t\"Respuesta\": \"Pass o Stop\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -1380,
+        600
+      ],
+      "id": "180c50be-31ce-4cf7-b74a-524737463a8b",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "be01b452-8609-4ee9-b658-69b3e478d925",
+              "leftValue": "={{ $json.output.Respuesta }}",
+              "rightValue": "Pass",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1160,
+        420
+      ],
+      "id": "3f3eebc7-b9e8-4e74-80c7-60d534afa83c",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -1540,
+        600
+      ],
+      "id": "8cf8f7cb-59f8-46cb-8955-b405ccce690c",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "aBB7Hz2OkCnAtOLV",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "18CHiZKkA_fiHxroHVOtnTh8km4X-OduLNcnomRkH6-8",
+          "mode": "list",
+          "cachedResultName": "Tendencias Youtube",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/18CHiZKkA_fiHxroHVOtnTh8km4X-OduLNcnomRkH6-8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Hoja 1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/18CHiZKkA_fiHxroHVOtnTh8km4X-OduLNcnomRkH6-8/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Categoria": "={{ $('Remove Duplicates').item.json.category }}",
+            "Nombre": "={{ $('Remove Duplicates').item.json.title }}",
+            "URL": "={{ $('Remove Duplicates').item.json.yt_url }}",
+            "Vistas": "={{ $('Remove Duplicates').item.json.views }}",
+            "Promedio Likes": "={{ $('Remove Duplicates').item.json.like_ratio }}",
+            "Promedio Comentarios": "={{ $('Remove Duplicates').item.json.comment_ratio }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Categoria",
+              "displayName": "Categoria",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Nombre",
+              "displayName": "Nombre",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "URL",
+              "displayName": "URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Vistas",
+              "displayName": "Vistas",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Promedio Likes",
+              "displayName": "Promedio Likes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Promedio Comentarios",
+              "displayName": "Promedio Comentarios",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        -880,
+        400
+      ],
+      "id": "acd3e50d-141b-463d-a763-574788825ff9",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "nSNh3eRydNruQBwE",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "Get many videos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many videos": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Remove Duplicates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Remove Duplicates": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "9dce6b14-d7b3-4fde-8b9f-97ff1939a5c5",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "f4d7f87e43bae04b762f8af7d78b52996635e7d0ada920f7372444934d512c68"
+  },
+  "id": "G1QJWtfPa0J3oxRc",
+  "tags": []
+}
